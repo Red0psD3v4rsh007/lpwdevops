@@ -1,0 +1,128 @@
+# ── PR6: Service Discovery Demo ────────────────────────────────────────────
+# product-service: ClusterIP (DNS-based service discovery inside cluster)
+# order-service:   ClusterIP (internal)
+# frontend:        LoadBalancer (external entry point with load balancing)
+#
+# Service discovery: order-service reaches product-service via DNS name
+# "product-service:5001" — Kubernetes DNS resolves this automatically.
+#
+# Load Balancing: Kubernetes load-balances across all 3 frontend replicas.
+# ───────────────────────────────────────────────────────────────────────────
+
+# ── Frontend Deployment (3 replicas for load balancing demo) ───────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  labels:
+    app: frontend
+    practical: pr6
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: html
+              mountPath: /usr/share/nginx/html
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+      initContainers:
+        - name: init-html
+          image: busybox
+          command:
+            - sh
+            - -c
+            - |
+              cat > /html/index.html << 'EOF'
+              <!DOCTYPE html>
+              <html>
+              <head><title>PR6 - Microservices Frontend</title></head>
+              <body>
+                <h1>PR6: Service Discovery & Load Balancing</h1>
+                <p>Served by pod: <strong>HOSTNAME</strong></p>
+                <p>Services available via Kubernetes DNS:</p>
+                <ul>
+                  <li>product-service:5001 (ClusterIP)</li>
+                  <li>order-service:5002 (ClusterIP)</li>
+                </ul>
+              </body>
+              </html>
+              EOF
+              POD=$(cat /etc/hostname)
+              sed -i "s/HOSTNAME/$POD/g" /html/index.html
+          volumeMounts:
+            - name: html
+              mountPath: /html
+      volumes:
+        - name: html
+          emptyDir: {}
+---
+# ── Frontend LoadBalancer Service ──────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  labels:
+    app: frontend
+    practical: pr6
+  annotations:
+    # AWS ELB annotation for internet-facing load balancer
+    service.beta.kubernetes.io/aws-load-balancer-type: "classic"
+spec:
+  selector:
+    app: frontend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: LoadBalancer
+---
+# ── product-service ClusterIP (Service Discovery) ─────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: product-service-internal
+  labels:
+    app: product-service
+    practical: pr6
+spec:
+  selector:
+    app: product-service
+  ports:
+    - protocol: TCP
+      port: 5001
+      targetPort: 5001
+  type: ClusterIP
+---
+# ── order-service ClusterIP (Service Discovery) ────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service-internal
+  labels:
+    app: order-service
+    practical: pr6
+spec:
+  selector:
+    app: order-service
+  ports:
+    - protocol: TCP
+      port: 5002
+      targetPort: 5002
+  type: ClusterIP

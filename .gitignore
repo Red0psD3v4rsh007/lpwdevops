@@ -1,0 +1,19 @@
+# Large binaries
+kubectl
+minikube-linux-amd64
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Node artifacts
+node_modules/
+npm-debug.log*
+
+# Environment and OS files
+.env
+.DS_Store
+Thumbs.db

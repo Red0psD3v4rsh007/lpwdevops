@@ -79,8 +79,8 @@ jobs:
     needs: [build]
     env:
       REGISTRY: ghcr.io
-      # Convert the repository name to lowercase manually in the environment or workflow
-      IMAGE_NAME: ghcr.io/red0psd3v4rsh007/devops10
+      # Lowercase repository name without registry prefix
+      IMAGE_NAME: red0psd3v4rsh007/devops10
     outputs:
       image_tag: ${{ steps.set_output.outputs.image_tag }}
     steps:
@@ -163,11 +163,13 @@ jobs:
       - name: Update Kubernetes deployment file
         env:
           IMAGE_TAG: sha-${{ github.sha }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
           REGISTRY: ghcr.io
         run: |
-          # Define the new image with tag
-          NEW_IMAGE="${REGISTRY}/${GITHUB_REPOSITORY}:${IMAGE_TAG}"
+          # Lowercase the repository name
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+
+          # Define the new image with tag using lowercase repository name
+          NEW_IMAGE="${REGISTRY}/${REPO_LOWER}:${IMAGE_TAG}"
 
           # Update the deployment file directly
           sed -i "s|image: ${REGISTRY}/.*|image: ${NEW_IMAGE}|g" kubernetes/deployment.yaml
